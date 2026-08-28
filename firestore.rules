@@ -1,0 +1,79 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for Zero-Trust Authorization & Attribute-Based Access Control (ABAC)
+
+    /**
+     * Checks if the incoming request is from an authenticated user.
+     */
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    /**
+     * Checks if the authenticated user's UID matches the path owner userId.
+     * Prevents any user from accessing another user's document tree.
+     */
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    /**
+     * Validates journal session schema integrity and bounds:
+     * - Enforces that internal document userId matches the authenticated UID
+     * - Enforces strict string constraints and bounded message/tag array lengths
+     */
+    function isValidJournal(data, expectedUserId) {
+      return data.userId == expectedUserId
+        && data.id is string
+        && data.title is string
+        && data.title.size() <= 200
+        && data.status in ['in-progress', 'finished']
+        && data.messages is list
+        && data.messages.size() <= 500
+        && (!('tags' in data) || (data.tags is list && data.tags.size() <= 30));
+    }
+
+    /**
+     * User profile document isolation:
+     * Only the user themselves can read or write their own user profile document.
+     */
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.userId == userId;
+      allow delete: if isOwner(userId);
+
+      /**
+       * Sub-collection for private user journal sessions:
+       * Stored strictly under /users/{userId}/journals/{journalId}
+       * - Read: Denied unless request.auth.uid matches {userId}
+       * - Create: Denied unless request.auth.uid matches {userId} AND request.resource.data.userId matches request.auth.uid
+       * - Update: Denied unless request.auth.uid matches {userId} AND cannot tamper with userId field
+       * - Delete: Denied unless request.auth.uid matches {userId}
+       */
+      match /journals/{journalId} {
+        allow read: if isOwner(userId);
+
+        allow create: if isOwner(userId)
+          && request.resource.data.userId == request.auth.uid
+          && isValidJournal(request.resource.data, userId);
+
+        allow update: if isOwner(userId)
+          && request.resource.data.userId == resource.data.userId
+          && isValidJournal(request.resource.data, userId);
+
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    /**
+     * Default Deny: All unmatched collections and paths are strictly forbidden.
+     */
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

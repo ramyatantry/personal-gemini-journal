@@ -1,0 +1,95 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Information about an authenticated user.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The unique Firebase UID of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user first signed in."
+        }
+      },
+      "required": ["userId"]
+    },
+    "JournalSession": {
+      "title": "JournalSession",
+      "description": "A private reflective journal entry and multi-turn dialogue.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the journal session."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase UID of the owner of this journal session."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the journal reflection."
+        },
+        "date": {
+          "type": "string",
+          "description": "Human-readable creation date string."
+        },
+        "time": {
+          "type": "string",
+          "description": "Human-readable creation time string."
+        },
+        "status": {
+          "type": "string",
+          "description": "Current status of the journal session.",
+          "enum": ["in-progress", "finished"]
+        },
+        "mood": {
+          "type": "string",
+          "description": "Self-reported or identified emotional tone."
+        },
+        "tags": {
+          "type": "array",
+          "description": "Keywords or themes for categorizing the session."
+        },
+        "messages": {
+          "type": "array",
+          "description": "Multi-turn dialogue messages with the reflective AI assistant."
+        },
+        "summary": {
+          "type": "object",
+          "description": "Synthesized reflection, insights, and takeaways."
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Epoch millisecond timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Epoch millisecond timestamp of the last edit."
+        }
+      },
+      "required": ["id", "userId", "title", "status", "messages"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile document isolated per user."
+    },
+    "/users/{userId}/journals/{journalId}": {
+      "schema": { "$ref": "#/entities/JournalSession" },
+      "description": "Private journal sessions belonging strictly to the authenticated user."
+    }
+  }
+}
