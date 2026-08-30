@@ -1,4 +1,4 @@
-import { useState, useEffect, type MouseEvent } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, type MouseEvent } from 'react';
 import { ViewMode, JournalSession } from './types';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
@@ -25,6 +25,20 @@ function JournalApp() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const mainRef = useRef<HTMLElement | null>(null);
+
+  // Ensure main container resets scroll position to top whenever switching views
+  useLayoutEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+  }, [currentView, activeSessionId]);
+
+  useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+  }, [currentView, activeSessionId]);
 
   // Connection check on boot
   useEffect(() => {
@@ -227,7 +241,10 @@ function JournalApp() {
         )}
 
         {/* Dynamic Body Content: Landing View, Ask My Journal, Monthly Reflection, Patterns & Themes, or Protected Journal Workspace */}
-        <main className="flex flex-1 flex-col overflow-y-auto bg-transparent">
+        <main
+          ref={mainRef}
+          className={`flex flex-1 flex-col ${currentView === 'journal' ? 'overflow-hidden' : 'overflow-y-auto'} bg-transparent`}
+        >
           {currentView === 'landing' ? (
             <LandingPage
               onStartJournal={(prompt) => handleStartNewJournal(prompt)}

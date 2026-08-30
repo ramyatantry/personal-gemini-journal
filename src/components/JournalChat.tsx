@@ -45,7 +45,7 @@ export function JournalChat({
   );
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Sync tempTitle if session changes
@@ -56,9 +56,14 @@ export function JournalChat({
     }
   }, [session.id, session.title, session.status, session.summary]);
 
-  // Scroll to bottom of chat
+  // Scroll to bottom of inner chat container only without affecting outer main container
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatScrollContainerRef.current) {
+      chatScrollContainerRef.current.scrollTo({
+        top: chatScrollContainerRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
   };
 
   useEffect(() => {
@@ -321,7 +326,7 @@ export function JournalChat({
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+      <div ref={chatScrollContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="mx-auto max-w-3xl">
           {activeTab === 'summary' ? (
             /* Summary View Area */
@@ -439,8 +444,6 @@ export function JournalChat({
                     </div>
                   </div>
                 )}
-
-                <div ref={messagesEndRef} />
               </div>
 
               {/* End of conversation finish prompt if user has shared thoughts */}

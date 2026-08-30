@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { JournalSession, PatternsThemesAnalysis } from '../types';
 import { analyzePatternsAndThemesOnServer } from '../services/geminiService';
 import {
@@ -44,6 +44,8 @@ export function PatternsAndThemes({
   });
   const [copied, setCopied] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const resultsRef = useRef<HTMLDivElement | null>(null);
 
   // Helper to filter sessions based on timeframe
   const getFilteredSessions = (tf: TimeframeOption): JournalSession[] => {
@@ -204,8 +206,8 @@ ${currentAnalysis.reflectionQuestions.map((q, idx) => `${idx + 1}. ${q}`).join('
   };
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto w-full max-w-5xl space-y-6">
+    <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 pt-6 pb-32 sm:px-6 sm:pt-8 sm:pb-40 lg:px-8">
+      <div className="w-full space-y-6">
         {/* Header Title Section */}
         <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-slate-900/60 p-6 backdrop-blur-2xl sm:flex-row sm:items-center sm:justify-between shadow-2xl">
           <div className="space-y-1">
@@ -272,6 +274,9 @@ ${currentAnalysis.reflectionQuestions.map((q, idx) => `${idx + 1}. ${q}`).join('
             </button>
           </div>
         </div>
+
+        {/* Results Ref Anchor */}
+        <div ref={resultsRef} className="scroll-mt-6" />
 
         {/* Error message */}
         {errorMsg && (

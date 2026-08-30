@@ -1,7 +1,6 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
@@ -11,13 +10,10 @@ import { getGeminiApiKeyFromSecretManager, invalidateSecretCache } from './serve
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 // Read applet config if present
 let appletConfig: { projectId?: string } = {};
 try {
-  const configPath = path.join(__dirname, 'firebase-applet-config.json');
+  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
   if (fs.existsSync(configPath)) {
     appletConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   }

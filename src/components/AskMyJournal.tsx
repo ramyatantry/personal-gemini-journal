@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useRef, useEffect, FormEvent } from 'react';
 import Markdown from 'react-markdown';
 import { JournalSession, AskJournalHistoryItem } from '../types';
 import { askJournalOnServer } from '../services/geminiService';
@@ -17,8 +17,9 @@ import {
   RefreshCw,
   Clock,
   Compass,
-  Tag,
-  Heart
+  Heart,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 interface AskMyJournalProps {
@@ -63,7 +64,27 @@ export function AskMyJournal({
   const [isLoading, setIsLoading] = useState(false);
   const [currentQuery, setCurrentQuery] = useState('');
   const [history, setHistory] = useState<AskJournalHistoryItem[]>([]);
-  const [activeTab, setActiveTab] = useState<'all' | 'recents'>('all');
+  const [showInquiries, setShowInquiries] = useState(true);
+  const loadingCardRef = useRef<HTMLDivElement | null>(null);
+  const latestResultRef = useRef<HTMLDivElement | null>(null);
+
+  // Keep container at top when inquiry starts so the header badge is never clipped
+  useEffect(() => {
+    if (isLoading) {
+      // Ensure the scroll container stays at top so the entire header and analyzing card are visible
+      const parentMain = loadingCardRef.current?.closest('main');
+      if (parentMain) {
+        parentMain.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+  }, [isLoading]);
+
+  // When synthesis finishes, gently bring the new result into view
+  useEffect(() => {
+    if (history.length > 0 && !isLoading && latestResultRef.current) {
+      latestResultRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [history.length, isLoading]);
 
   const handleAsk = async (questionToAsk: string) => {
     const trimmed = questionToAsk.trim();
@@ -96,86 +117,100 @@ export function AskMyJournal({
   };
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+    <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 pt-4 pb-24 sm:px-6 sm:pt-6 sm:pb-32 lg:px-8">
       {/* Header Banner */}
-      <div className="relative shrink-0 rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-white/[0.02] p-6 sm:p-8 backdrop-blur-2xl shadow-2xl overflow-hidden">
+      <div className="relative shrink-0 rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-white/[0.02] p-4 sm:p-5 backdrop-blur-2xl shadow-2xl overflow-hidden">
         {/* Glow Accent */}
         <div className="pointer-events-none absolute -top-16 -right-16 h-48 w-48 rounded-full bg-indigo-500/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-purple-500/20 blur-3xl" />
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-500/15 px-3 py-1 text-xs font-medium text-indigo-300 backdrop-blur-md">
-              <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-indigo-400/30 bg-indigo-500/15 px-2.5 py-0.5 text-xs font-medium text-indigo-300 backdrop-blur-md">
+              <Sparkles className="h-3 w-3 text-indigo-400" />
               <span>AI Journal Intelligence</span>
             </div>
-            <h1 className="font-editorial mt-3 text-3xl font-medium tracking-tight text-white sm:text-4xl">
+            <h1 className="font-editorial mt-1.5 text-2xl font-medium tracking-tight text-white sm:text-3xl">
               Ask My Journal
             </h1>
-            <p className="mt-2 max-w-2xl text-xs sm:text-sm text-slate-300 leading-relaxed">
-              Explore patterns, recurring concerns, goals, and specific reflections across your private journal entries. Gemini synthesizes insights strictly from your personal history.
+            <p className="mt-1 max-w-2xl text-xs text-slate-300 leading-relaxed">
+              Explore patterns, recurring concerns, goals, and reflections across your private entries.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 self-start md:self-auto">
-            <div className="flex flex-col items-end rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 backdrop-blur-md">
+          <div className="flex items-center gap-3 self-start md:self-auto shrink-0">
+            <div className="flex flex-col items-end rounded-2xl border border-white/10 bg-white/5 px-3 py-1.5 backdrop-blur-md">
               <span className="text-[10px] uppercase font-semibold tracking-wider text-slate-400">
                 Indexed Sanctuary
               </span>
-              <span className="text-sm font-bold text-indigo-300">
+              <span className="text-xs font-bold text-indigo-300">
                 {sessions.length} {sessions.length === 1 ? 'Journal Entry' : 'Journal Entries'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Suggested Starter Questions */}
-        <div className="relative z-10 mt-6 pt-5 border-t border-white/10">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-3">
-            <HelpCircle className="h-3.5 w-3.5 text-indigo-400" />
-            <span>Suggested Inquiries</span>
-          </p>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-            {PRESET_QUESTIONS.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.question}
-                  onClick={() => handleAsk(item.question)}
-                  disabled={isLoading}
-                  className={`group flex flex-col justify-between rounded-2xl border bg-gradient-to-br p-3.5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none ${item.color} hover:border-white/30`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">
-                      {item.label}
-                    </span>
-                    <Icon className="h-3.5 w-3.5 opacity-70 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <p className="mt-2 text-xs font-medium text-white line-clamp-2 leading-snug">
-                    "{item.question}"
-                  </p>
-                  <div className="mt-2.5 flex items-center gap-1 text-[10px] font-medium opacity-75 group-hover:opacity-100">
-                    <span>Ask this</span>
-                    <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-                  </div>
-                </button>
-              );
-            })}
+        {/* Suggested Starter Questions Section */}
+        <div className="relative z-10 mt-3.5 pt-3 border-t border-white/10">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <HelpCircle className="h-3.5 w-3.5 text-indigo-400" />
+              <span>Suggested Inquiries</span>
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowInquiries((prev) => !prev)}
+              className="flex items-center gap-1 text-[11px] font-medium text-indigo-300 hover:text-indigo-200 transition-colors bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded-lg border border-white/10"
+            >
+              <span>{showInquiries ? 'Hide suggestions' : 'Show suggestions'}</span>
+              {showInquiries ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </button>
           </div>
+
+          {showInquiries && !isLoading && (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {PRESET_QUESTIONS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    type="button"
+                    key={item.question}
+                    onClick={() => handleAsk(item.question)}
+                    disabled={isLoading}
+                    className={`group flex flex-col justify-between rounded-xl border bg-gradient-to-br p-2.5 text-left transition-all hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none ${item.color} hover:border-white/30 shadow-sm`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">
+                        {item.label}
+                      </span>
+                      <Icon className="h-3.5 w-3.5 opacity-70 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                    <p className="mt-1 text-xs font-medium text-white line-clamp-2 leading-snug">
+                      "{item.question}"
+                    </p>
+                    <div className="mt-1.5 flex items-center gap-1 text-[10px] font-medium opacity-75 group-hover:opacity-100">
+                      <span>Ask this</span>
+                      <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Query Input Form */}
-      <form onSubmit={handleSubmit} className="mt-6">
-        <div className="relative flex items-center rounded-2xl border border-white/15 bg-white/5 p-2 shadow-2xl backdrop-blur-2xl transition-all focus-within:border-indigo-400/50 focus-within:bg-white/10">
-          <Search className="ml-3 h-5 w-5 text-slate-400" />
+      <form onSubmit={handleSubmit} className="mt-3.5">
+        <div className="relative flex items-center rounded-2xl border border-white/15 bg-white/5 p-1.5 shadow-2xl backdrop-blur-2xl transition-all focus-within:border-indigo-400/50 focus-within:bg-white/10">
+          <Search className="ml-3 h-4 w-4 text-slate-400 shrink-0" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Ask anything about your thoughts, concerns, goals, milestones..."
             disabled={isLoading}
-            className="flex-1 bg-transparent px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-hidden disabled:opacity-50"
+            className="flex-1 bg-transparent px-3 py-1.5 text-sm text-white placeholder-slate-400 focus:outline-hidden disabled:opacity-50 min-w-0"
           />
           {query && (
             <button
@@ -189,7 +224,7 @@ export function AskMyJournal({
           <button
             type="submit"
             disabled={!query.trim() || isLoading}
-            className="flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-indigo-600/30 border border-indigo-400/30 transition-all disabled:opacity-40 disabled:pointer-events-none active:scale-95"
+            className="flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-3.5 sm:px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-600/30 border border-indigo-400/30 transition-all disabled:opacity-40 disabled:pointer-events-none active:scale-95 shrink-0"
           >
             {isLoading ? (
               <>
@@ -206,89 +241,75 @@ export function AskMyJournal({
         </div>
       </form>
 
-      {/* Loading Pulse Animation State */}
+      {/* Loading Pulse Animation State - Compact, Proportional & Fully in Viewport */}
       {isLoading && (
-        <div className="mt-6 overflow-hidden rounded-3xl border border-indigo-400/30 bg-gradient-to-b from-indigo-950/40 via-purple-950/20 to-black/40 p-6 sm:p-7 backdrop-blur-2xl shadow-2xl relative">
-          {/* Ambient Glow Orbs with Pulse */}
-          <div className="pointer-events-none absolute -top-12 -right-12 h-40 w-40 rounded-full bg-indigo-500/20 blur-3xl animate-pulse" />
-          <div className="pointer-events-none absolute -bottom-12 -left-12 h-40 w-40 rounded-full bg-purple-500/20 blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div
+          ref={loadingCardRef}
+          className="mt-3.5 overflow-hidden rounded-2xl border border-indigo-400/30 bg-gradient-to-b from-indigo-950/80 via-slate-900/90 to-purple-950/80 p-3.5 sm:p-4 backdrop-blur-xl shadow-xl relative animate-in fade-in duration-200"
+        >
+          {/* Ambient Glow */}
+          <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-indigo-500/20 blur-2xl animate-pulse" />
+          <div className="pointer-events-none absolute -bottom-8 -left-8 h-24 w-24 rounded-full bg-purple-500/20 blur-2xl animate-pulse" style={{ animationDelay: '1s' }} />
 
-          {/* Header Status with Animated Pulse Radar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              {/* Concentric Pulse Icon */}
-              <div className="relative flex h-11 w-11 shrink-0 items-center justify-center">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-2xl bg-indigo-500/30 opacity-75" />
-                <span className="absolute inline-flex h-9 w-9 animate-pulse rounded-2xl bg-purple-500/40 opacity-90" />
-                <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl border border-indigo-400/40 bg-gradient-to-br from-indigo-600/80 to-purple-600/80 text-white shadow-lg shadow-indigo-500/30">
-                  <Sparkles className="h-5 w-5 animate-spin" style={{ animationDuration: '4s' }} />
+          {/* Header Status */}
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-3">
+              <div className="relative flex h-8 w-8 shrink-0 items-center justify-center">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-xl bg-indigo-500/30 opacity-75" />
+                <div className="relative flex h-8 w-8 items-center justify-center rounded-xl border border-indigo-400/40 bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-md">
+                  <Sparkles className="h-4 w-4 animate-spin" style={{ animationDuration: '4s' }} />
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-white tracking-wide">
-                    Analyzing Historical Journal Data
+                  <h3 className="text-xs sm:text-sm font-semibold text-white tracking-wide">
+                    Analyzing Journal Data
                   </h3>
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
                   </span>
                 </div>
-                <p className="text-xs text-slate-300 mt-0.5">
-                  Scanning <span className="font-medium text-indigo-300">{sessions.length} recorded {sessions.length === 1 ? 'reflection' : 'reflections'}</span> for patterns, emotions, and answers.
+                <p className="text-[11px] text-slate-300">
+                  Scanning <span className="font-medium text-indigo-300">{sessions.length} reflections</span> for patterns and citations...
                 </p>
               </div>
             </div>
 
             {currentQuery && (
-              <div className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-full border border-indigo-400/20 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-200 backdrop-blur-md max-w-full truncate">
+              <div className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-xl border border-indigo-400/30 bg-indigo-500/15 px-2.5 py-1 text-[11px] text-indigo-200 backdrop-blur-md max-w-full">
                 <Search className="h-3 w-3 shrink-0 text-indigo-400" />
-                <span className="truncate max-w-[260px]">&ldquo;{currentQuery}&rdquo;</span>
+                <span className="truncate max-w-[220px] font-medium">&ldquo;{currentQuery}&rdquo;</span>
               </div>
             )}
           </div>
 
-          {/* Analysis Pulse Progress Indicators */}
-          <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            <div className="flex items-center gap-2 rounded-xl border border-indigo-500/20 bg-white/[0.03] px-3 py-2 animate-pulse">
-              <span className="h-2 w-2 rounded-full bg-indigo-400" />
-              <span className="text-[11px] font-medium text-indigo-200">1. Retrieving entries</span>
-            </div>
-            <div className="flex items-center gap-2 rounded-xl border border-purple-500/20 bg-white/[0.03] px-3 py-2 animate-pulse" style={{ animationDelay: '300ms' }}>
-              <span className="h-2 w-2 rounded-full bg-purple-400" />
-              <span className="text-[11px] font-medium text-purple-200">2. Extracting key themes</span>
-            </div>
-            <div className="flex items-center gap-2 rounded-xl border border-pink-500/20 bg-white/[0.03] px-3 py-2 animate-pulse" style={{ animationDelay: '600ms' }}>
-              <span className="h-2 w-2 rounded-full bg-pink-400" />
-              <span className="text-[11px] font-medium text-pink-200">3. Synthesizing citations</span>
-            </div>
+          {/* Shimmering Progress Bar */}
+          <div className="relative z-10 mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div className="h-full w-full bg-gradient-to-r from-indigo-500 via-purple-400 to-pink-500 animate-pulse" />
           </div>
 
-          {/* Pulsing Skeleton Lines & Mock Card Blocks */}
-          <div className="mt-5 space-y-3 rounded-2xl border border-white/5 bg-black/20 p-4">
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-24 rounded-full bg-indigo-400/30 animate-pulse" />
-              <div className="h-4 w-32 rounded-full bg-white/10 animate-pulse" style={{ animationDelay: '150ms' }} />
+          {/* Analysis Pulse Progress Pipeline Indicators */}
+          <div className="relative z-10 mt-2.5 grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="flex items-center gap-2 rounded-lg border border-indigo-500/20 bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium text-indigo-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-ping shrink-0" />
+              <span>1. Retrieving entries</span>
             </div>
-            <div className="space-y-2 pt-1">
-              <div className="h-3 w-full rounded-full bg-white/10 animate-pulse" style={{ animationDelay: '100ms' }} />
-              <div className="h-3 w-11/12 rounded-full bg-white/10 animate-pulse" style={{ animationDelay: '250ms' }} />
-              <div className="h-3 w-4/5 rounded-full bg-white/10 animate-pulse" style={{ animationDelay: '400ms' }} />
+            <div className="flex items-center gap-2 rounded-lg border border-purple-500/20 bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium text-purple-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-pulse shrink-0" />
+              <span>2. Extracting themes</span>
             </div>
-
-            {/* Citation Skeleton Pills */}
-            <div className="mt-4 flex flex-wrap gap-2 pt-2 border-t border-white/5">
-              <div className="h-7 w-36 rounded-xl bg-white/10 animate-pulse" style={{ animationDelay: '200ms' }} />
-              <div className="h-7 w-44 rounded-xl bg-white/10 animate-pulse" style={{ animationDelay: '350ms' }} />
-              <div className="h-7 w-28 rounded-xl bg-white/10 animate-pulse" style={{ animationDelay: '500ms' }} />
+            <div className="flex items-center gap-2 rounded-lg border border-pink-500/20 bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium text-pink-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-pink-400 animate-pulse shrink-0" />
+              <span>3. Synthesizing insights</span>
             </div>
           </div>
         </div>
       )}
 
       {/* Results / History Stream */}
-      <div className="mt-6 flex-1 space-y-6 pb-16">
+      <div className="mt-6 flex-1 space-y-6">
         {history.length === 0 && !isLoading ? (
           sessions.length === 0 ? (
             /* Empty State: No Journals Yet */
@@ -321,15 +342,16 @@ export function AskMyJournal({
             </div>
           )
         ) : (
-          history.map((item) => (
+          history.map((item, idx) => (
             <div
               key={item.id}
-              className="rounded-3xl border border-white/15 bg-slate-900/80 p-6 sm:p-7 backdrop-blur-2xl shadow-2xl space-y-5"
+              ref={idx === 0 ? latestResultRef : null}
+              className="rounded-3xl border border-white/15 bg-slate-900/90 p-6 sm:p-7 backdrop-blur-2xl shadow-2xl space-y-5"
             >
               {/* Question Header */}
               <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 font-bold text-xs">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 font-bold text-xs">
                     Q
                   </div>
                   <div>
