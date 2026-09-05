@@ -5,7 +5,10 @@
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
-body {
+html, body {
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
   font-family: var(--font-sans);
   background-color: #0f172a;
   color: #e2e8f0;

@@ -3,7 +3,7 @@
 > An AI-assisted personal journaling platform that doesn't just store your thoughts, but helps you understand them, connect past experiences, and identify recurring patterns over time.
 
 [![Google Cloud Run](https://img.shields.io/badge/Google_Cloud-Cloud_Run-4285F4?logo=googlecloud&logoColor=white)](https://cloud.google.com/run)
-[![Google Gemini API](https://img.shields.io/badge/Gemini_API-2.5_Flash_&_3.1_Flash_Lite-8E75B2?logo=googlegemini&logoColor=white)](https://ai.google.dev/)
+[![Google Gemini API](https://img.shields.io/badge/Gemini_API-3.8_Flash_&_3.1_Flash_Lite-8E75B2?logo=googlegemini&logoColor=white)](https://ai.google.dev/)
 [![Firebase](https://img.shields.io/badge/Firebase-Auth_&_Firestore-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com/)
 [![Cloud Secret Manager](https://img.shields.io/badge/GCP-Secret_Manager-34A853?logo=googlecloud&logoColor=white)](https://cloud.google.com/secret-manager)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -107,7 +107,7 @@ The following screenshots illustrate the primary user journeys and analytical ca
 
 ## ✨ Core Experience
 
-The application centers around four main capabilities:
+The application centers around five main capabilities:
 
 ### 1. Guided / Conversational Journaling
 - **Empathetic Guide**: Powered by Gemini, the conversational engine provides grounded, non-judgmental guidance designed to help users articulate what is underneath their thoughts.
@@ -137,6 +137,12 @@ The application centers around four main capabilities:
 - **Behavioral & Mindset Dynamics**: Identifies helpful routines versus unhelpful loops.
 - **Growth Narrative & Questions**: Summarizes emotional progression over time and provides personalized prompts for future sessions.
 
+### 5. Mood & Energy Trajectory Chart
+- **Longitudinal Dual-Curve Visualization**: Combines emotional valence (0–100) and physical vitality/energy (0–100) into an interactive area chart rendered via Recharts.
+- **4-Quadrant Vitality Distribution**: Classifies sessions into *Flourishing* (high mood, high energy), *Deep Contemplation* (high mood, low energy), *Restless / Agitated* (low mood, high energy), and *Gentle Recharge* (low mood, low energy).
+- **Milestone Timeline & Direct Inspection**: Interactive markers and session cards enable immediate drill-down into specific journal entries from the chart.
+- **Benchmark Overlays**: Includes optional sample benchmarks to demonstrate longitudinal trends for new users before extensive journal histories exist.
+
 ---
 
 ## 🏆 Challenge Highlights
@@ -160,9 +166,10 @@ This project demonstrates practical full-stack AI application development on Goo
 | **Frontend UI** | [React 19](https://react.dev/) + [TypeScript 5.8](https://www.typescriptlang.org/) | Single-page application with modular component architecture |
 | **Styling & Icons** | [Tailwind CSS v4](https://tailwindcss.com/) + [Lucide React](https://lucide.dev/) | Custom responsive dark-theme design system with accessible contrast |
 | **Animations & Markdown** | [Motion](https://motion.dev/) + [React-Markdown](https://github.com/remarkjs/react-markdown) | Transition animations and formatted Markdown rendering |
+| **Data Visualization** | [Recharts 2](https://recharts.org/) | Responsive SVG/Canvas area charts for mood and energy trajectory |
 | **Backend Server** | [Express.js](https://expressjs.com/) on [Node.js 20 LTS](https://nodejs.org/) | Authenticated API proxy and production static asset server |
 | **Build Tooling** | [Vite 6](https://vitejs.dev/) + [esbuild](https://esbuild.github.io/) | Fast client bundling and self-contained CommonJS server compilation |
-| **AI Models** | [Gemini 2.5 Flash / 3.1 Flash Lite](https://ai.google.dev/) via `@google/genai` | Empathetic chat, structured session synthesis, and journal search |
+| **AI Models** | [Gemini 3.8 Flash & 3.1 Flash Lite](https://ai.google.dev/) via `@google/genai` | Empathetic chat, structured session synthesis, and journal search with local synthesis fallback |
 | **Identity & Database** | [Firebase Auth](https://firebase.google.com/docs/auth) & [Cloud Firestore](https://firebase.google.com/docs/firestore) | Google Identity sign-in and real-time document persistence |
 | **Secret Management** | [Google Cloud Secret Manager](https://cloud.google.com/secret-manager) | IAM-governed runtime credential access via Application Default Credentials |
 | **Container Compute** | [Google Cloud Run](https://cloud.google.com/run) | Serverless production container deployment |
@@ -217,7 +224,7 @@ Cloud Firestore        Google Gemini API      Cloud Secret Manager
                          ▼                                         ▼
           ┌─────────────────────────────┐           ┌─────────────────────────────┐
           │  Google Cloud Secret Manager│           │      Google Gemini API      │
-          │  - Secret: GEMINI_API_KEY   │           │  - Model: gemini-2.5-flash  │
+          │  - Secret: GEMINI_API_KEY   │           │  - Model: gemini-3.8-flash  │
           │  - Accessed via ADC (IAM)   │           │    & gemini-3.1-flash-lite  │
           │  - 1-Hour In-Memory Cache   │           │  - Structured JSON Output   │
           │  - Automatic Log Redaction  │           │  - Markdown Formatting      │
@@ -245,6 +252,10 @@ Cloud Firestore        Google Gemini API      Cloud Secret Manager
 ### 4. Why Structured Gemini Responses (JSON Schemas)?
 - **Predictable UI Rendering**: Utilizing `responseMimeType: 'application/json'` and strict `responseSchema` definitions guarantees that endpoints like `/api/journal/summarize`, `/api/journal/monthly-reflection`, and `/api/journal/patterns` return the exact fields required by the UI.
 - **Empathetic Flexibility**: Gemini generates nuanced, contextual writing while adhering to a stable contract for sentiment scores, tags, and action items.
+
+### 5. Why Resilient Local Synthesis Fallback?
+- **Zero-Disruption Reflective Flow**: Upstream AI service rate limits (HTTP 429 quota exhaustion) or network blips should never lock a user out of their journaling flow or retrospective insights.
+- **Privacy-Preserving On-Device/Server Intelligence**: The local synthesis engine (`server/localSynthesis.ts`) performs intelligent semantic keyword extraction, thematic aggregation, and cross-entry search directly from the user's private journal records when upstream calls encounter rate limits.
 
 ---
 
@@ -318,14 +329,14 @@ service cloud.firestore {
 
 ## 🤖 How Gemini Is Used
 
-The application uses the `@google/genai` TypeScript SDK with **Gemini 2.5 Flash** and **Gemini 3.1 Flash Lite** across five specialized server endpoints:
+The application uses the `@google/genai` TypeScript SDK with **Gemini 3.8 Flash** and **Gemini 3.1 Flash Lite** (backed by an intelligent local synthesis engine for rate-limit resilience) across five specialized server endpoints:
 
 1. **Conversational Guide (`/api/journal/chat`)**:
    - System prompt guides user through reflective Socratic dialogue.
    - Outputs conversational reply and 3 suggested completion starters.
 
 2. **Session Synthesis (`/api/journal/summarize`)**:
-   - Generates an executive summary, mood score (0–100), key realizations, action items, reflection narrative, and thematic tags.
+   - Generates an executive summary, emotional valence score (0–100), energy/vitality score (0–100), key realizations, action items, reflection narrative, and thematic tags. Powering the longitudinal Mood & Energy Trajectory engine.
 
 3. **Cross-Entry Search (`/api/journal/ask`)**:
    - Ingests recent user journal transcripts and synthesizes answers to open-ended retrospective queries with specific journal citations.
@@ -335,6 +346,8 @@ The application uses the `@google/genai` TypeScript SDK with **Gemini 2.5 Flash*
 
 5. **Patterns & Themes (`/api/journal/patterns`)**:
    - Evaluates multi-timeframe entries (30 days to all time) for recurring topics, behavioral tendencies, emotional trajectories, and tailored prompts.
+
+*All endpoints feature automatic, high-fidelity fallback to the internal local synthesis engine (`server/localSynthesis.ts`) during upstream rate-limiting (HTTP 429) or offline states, ensuring uninterrupted reflection and insight extraction.*
 
 ---
 

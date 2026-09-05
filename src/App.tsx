@@ -7,6 +7,7 @@ import { JournalChat } from './components/JournalChat';
 import { AskMyJournal } from './components/AskMyJournal';
 import { MonthlyReflection } from './components/MonthlyReflection';
 import { PatternsAndThemes } from './components/PatternsAndThemes';
+import { MoodEnergyTrajectory } from './components/MoodEnergyTrajectory';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModal } from './components/AuthModal';
 import {
@@ -206,7 +207,7 @@ function JournalApp() {
       <Header
         currentView={currentView}
         onNavigate={(view) => {
-          if ((view === 'journal' || view === 'ask' || view === 'monthly-reflection' || view === 'patterns') && !isAuthenticated) {
+          if ((view === 'journal' || view === 'ask' || view === 'monthly-reflection' || view === 'patterns' || view === 'trajectory') && !isAuthenticated) {
             requireAuthAction(() => setCurrentView(view));
           } else {
             setCurrentView(view);
@@ -228,6 +229,8 @@ function JournalApp() {
             activeSessionId={currentView === 'journal' ? activeSessionId : null}
             onSelectSession={handleSelectSession}
             onNewSession={() => handleStartNewJournal()}
+            onTrajectory={() => setCurrentView('trajectory')}
+            isTrajectoryActive={currentView === 'trajectory'}
             onAskJournal={() => setCurrentView('ask')}
             isAskActive={currentView === 'ask'}
             onMonthlyReflection={() => setCurrentView('monthly-reflection')}
@@ -240,7 +243,7 @@ function JournalApp() {
           />
         )}
 
-        {/* Dynamic Body Content: Landing View, Ask My Journal, Monthly Reflection, Patterns & Themes, or Protected Journal Workspace */}
+        {/* Dynamic Body Content: Landing View, Ask My Journal, Monthly Reflection, Patterns & Themes, Trajectory, or Protected Journal Workspace */}
         <main
           ref={mainRef}
           className={`flex flex-1 flex-col ${currentView === 'journal' ? 'overflow-hidden' : 'overflow-y-auto'} bg-transparent`}
@@ -249,6 +252,7 @@ function JournalApp() {
             <LandingPage
               onStartJournal={(prompt) => handleStartNewJournal(prompt)}
               onExploreSession={(id) => handleSelectSession(id)}
+              onTrajectory={() => requireAuthAction(() => setCurrentView('trajectory'))}
               onAskJournal={() => requireAuthAction(() => setCurrentView('ask'))}
               onMonthlyReflection={() => requireAuthAction(() => setCurrentView('monthly-reflection'))}
               onPatterns={() => requireAuthAction(() => setCurrentView('patterns'))}
@@ -273,6 +277,13 @@ function JournalApp() {
                 <span>Sign In with Google</span>
               </button>
             </div>
+          ) : currentView === 'trajectory' ? (
+            /* Mood & Energy Trajectory View */
+            <MoodEnergyTrajectory
+              sessions={sessions}
+              onOpenJournal={(id) => handleSelectSession(id)}
+              onNewJournal={() => handleStartNewJournal()}
+            />
           ) : currentView === 'ask' ? (
             /* Ask My Journal View */
             <AskMyJournal
@@ -301,6 +312,7 @@ function JournalApp() {
                 session={activeSession}
                 onUpdateSession={handleUpdateSession}
                 onFinishJournal={() => {}}
+                onViewTrajectory={() => setCurrentView('trajectory')}
               />
             </div>
           ) : (

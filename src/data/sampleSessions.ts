@@ -64,7 +64,8 @@ export const INITIAL_SESSIONS: JournalSession[] = [
         label: 'Relieved & Centered',
         emoji: '🌿',
         description: 'Transitioned from acute overwhelm to grounded clarity through deliberate action.',
-        sentimentScore: 78
+        sentimentScore: 78,
+        energyLevel: 65,
       },
       takeaways: [
         'Protect the first 90 minutes of tomorrow morning for single-task focus before opening communication channels.',
@@ -128,7 +129,8 @@ export const INITIAL_SESSIONS: JournalSession[] = [
         label: 'Peaceful & Energized',
         emoji: '☀️',
         description: 'High baseline of calm with refreshed optimism from deep rest.',
-        sentimentScore: 88
+        sentimentScore: 88,
+        energyLevel: 85,
       },
       takeaways: [
         'Pause for three conscious breaths before joining each scheduled meeting today.',
@@ -137,6 +139,162 @@ export const INITIAL_SESSIONS: JournalSession[] = [
       mindfulPrompt: 'In what moment today might you be tempted to rush, and how will you anchor back to this calm?',
       generatedAt: 'Aug 25, 2026 • 7:25 AM',
       wordCount: 95
+    }
+  },
+  {
+    id: 'session-3',
+    title: 'Navigating Technical Architecture Trade-offs',
+    date: 'Aug 28, 2026',
+    time: '4:20 PM',
+    status: 'finished',
+    mood: 'Analytical',
+    tags: ['Architecture', 'Problem-Solving', 'Focus'],
+    messages: [
+      {
+        id: 'm301',
+        sender: 'gemini',
+        text: 'Hello. What architectural problem is occupying your mental canvas right now?',
+        timestamp: '4:20 PM'
+      },
+      {
+        id: 'm302',
+        sender: 'user',
+        text: 'Wrestling with asynchronous caching vs immediate consistency for the user dashboard. Both approaches have valid trade-offs.',
+        timestamp: '4:23 PM'
+      },
+      {
+        id: 'm303',
+        sender: 'gemini',
+        text: 'When you consider user expectations during high load, which failure mode is more tolerable: a 2-second eventual consistency delay or a slower response time?',
+        timestamp: '4:25 PM'
+      }
+    ],
+    summary: {
+      title: 'Decisive System Architecture Balancing',
+      summary: 'Analyzed distributed consistency models and decisively selected cache-aside with lightweight optimistic updates for peak responsiveness.',
+      keyThoughts: [
+        'Eventual consistency is fully acceptable for metrics displays.',
+        'Reducing API latency has a direct positive impact on perceived performance.'
+      ],
+      actionItems: [
+        'Document the caching TTL policy in the engineering wiki.',
+        'Set up automated latency metrics alerts.'
+      ],
+      reflection: 'Focused technical clarity was achieved by evaluating user experience constraints rather than purely theoretical purity.',
+      keyThemes: ['Architecture', 'Engineering Decision-Making', 'Clarity'],
+      mood: {
+        label: 'Invigorated & Clear',
+        emoji: '⚡',
+        description: 'High intellectual engagement with resolving a complex design puzzle.',
+        sentimentScore: 82,
+        energyLevel: 90,
+      },
+      takeaways: [
+        'Simplicity in caching beats over-engineered distributed synchronization.'
+      ],
+      mindfulPrompt: 'Where else in your work can you choose practical simplicity over theoretical perfection?',
+      generatedAt: 'Aug 28, 2026 • 4:32 PM',
+      wordCount: 110
+    }
+  },
+  {
+    id: 'session-4',
+    title: 'Midday Reset & Reclaiming Mental Breath',
+    date: 'Aug 29, 2026',
+    time: '1:10 PM',
+    status: 'finished',
+    mood: 'Fatigued',
+    tags: ['Rest', 'Recharge', 'Wellness'],
+    messages: [
+      {
+        id: 'm401',
+        sender: 'gemini',
+        text: 'Take a quiet pause. How is your energy holding up in the middle of this day?',
+        timestamp: '1:10 PM'
+      },
+      {
+        id: 'm402',
+        sender: 'user',
+        text: 'Heavy back-to-back meetings left my battery running on empty. I need to recharge without feeling guilty about taking 20 minutes.',
+        timestamp: '1:12 PM'
+      }
+    ],
+    summary: {
+      title: 'Midday Restoration & Rest Acceptance',
+      summary: 'Recognized cognitive depletion from continuous social interactions and allowed an intentional 20-minute screen-free recharge.',
+      keyThoughts: [
+        'Rest is not an indulgence or reward; it is an operating requirement.',
+        '20 minutes of silence restores more energy than pushing through exhaustion.'
+      ],
+      actionItems: [
+        'Step away from all screens for a 15-minute walk outside.',
+        'Drink a large glass of water before the next engagement.'
+      ],
+      reflection: 'Acknowledged genuine fatigue with compassion. Giving yourself permission to pause averted afternoon burnout.',
+      keyThemes: ['Energy Management', 'Self-Care', 'Pacing'],
+      mood: {
+        label: 'Gently Restoring',
+        emoji: '🌱',
+        description: 'Low physical battery but growing mental relief through acceptance of limits.',
+        sentimentScore: 68,
+        energyLevel: 42,
+      },
+      takeaways: [
+        'Recognize tiredness early before it becomes irritability or brain fog.'
+      ],
+      mindfulPrompt: 'What is one boundary you can set around your calendar to protect midday recharge blocks?',
+      generatedAt: 'Aug 29, 2026 • 1:22 PM',
+      wordCount: 88
+    }
+  },
+  {
+    id: 'session-5',
+    title: 'Weekly Wins, Deep Gratitude & Forward Outlook',
+    date: 'Aug 30, 2026',
+    time: '6:30 PM',
+    status: 'finished',
+    mood: 'Joyful',
+    tags: ['Celebration', 'Gratitude', 'Growth'],
+    messages: [
+      {
+        id: 'm501',
+        sender: 'gemini',
+        text: 'As you look across this past week, what moment brings you the deepest sense of contentment?',
+        timestamp: '6:30 PM'
+      },
+      {
+        id: 'm502',
+        sender: 'user',
+        text: 'We shipped the core release without any critical regressions, and I was able to mentor our new teammate through their first deployment.',
+        timestamp: '6:33 PM'
+      }
+    ],
+    summary: {
+      title: 'Weekly Retrospective & Contentment',
+      summary: 'Celebrated major engineering milestones and the relational fulfillment of empowering teammates, finishing the week with radiant morale.',
+      keyThoughts: [
+        'Mentorship and helping others succeed provides deeper satisfaction than solo execution.',
+        'Intentional pacing throughout the week allowed a calm finish rather than panic.'
+      ],
+      actionItems: [
+        'Send a brief thank-you note to the team for their collaboration.',
+        'Fully unplug over the weekend to recharge.'
+      ],
+      reflection: 'The week closed with harmonious balance between achievement and interpersonal connection. Gratitude and confidence are in healthy alignment.',
+      keyThemes: ['Mentorship', 'Achievement', 'Gratitude', 'Balance'],
+      mood: {
+        label: 'Harmonious & Thriving',
+        emoji: '✨',
+        description: 'High emotional fulfillment and sustained positive vitality.',
+        sentimentScore: 94,
+        energyLevel: 88,
+      },
+      takeaways: [
+        'Anchor in these feelings of accomplishment to build steady confidence for the next cycle.'
+      ],
+      mindfulPrompt: 'How can you preserve this generous spirit and lightness as new challenges arise next week?',
+      generatedAt: 'Aug 30, 2026 • 6:40 PM',
+      wordCount: 135
     }
   }
 ];

@@ -7,6 +7,13 @@ import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import dotenv from 'dotenv';
 import { getGeminiApiKeyFromSecretManager, invalidateSecretCache } from './server/secretManager.js';
+import {
+  synthesizeChatFallback,
+  synthesizeJournalSummary,
+  synthesizeAskJournal,
+  synthesizeMonthlyReflection,
+  synthesizePatternsAndThemes,
+} from './server/localSynthesis.js';
 
 dotenv.config();
 
@@ -142,14 +149,7 @@ app.post('/api/journal/chat', requireAuth, async (req, res) => {
 
     // If API key is not configured, return a thoughtful graceful fallback response
     if (!ai) {
-      res.json({
-        text: `Thank you for sharing this thought. I notice how meaningful this is for your current space of mind. What feels like the most significant feeling underneath this experience as you reflect on it today?`,
-        suggestedFollowUps: [
-          'I feel a mix of tension and hope about this',
-          'It is helping me see things from a clearer angle',
-          'I want to figure out what step to take next',
-        ],
-      });
+      res.json(synthesizeChatFallback(history, message, mood));
       return;
     }
 
@@ -179,10 +179,10 @@ Guidelines:
 The user's stated session mood is: "${mood}".`;
 
     let responseText = '';
-    // Use gemini-3.1-flash-lite as primary for sub-second responses, fallback to gemini-3.7-flash with LOW thinking level
+    // Try standard gemini-3.8-flash, fallback to gemini-3.1-flash-lite
     const modelsToTry = [
+      { model: 'gemini-3.8-flash', thinkingLevel: ThinkingLevel.LOW },
       { model: 'gemini-3.1-flash-lite', thinkingLevel: ThinkingLevel.MINIMAL },
-      { model: 'gemini-3.7-flash', thinkingLevel: ThinkingLevel.LOW },
     ];
     let lastError: unknown = null;
 
@@ -247,19 +247,11 @@ The user's stated session mood is: "${mood}".`;
       suggestedFollowUps: parsedData.suggestedFollowUps || [],
     });
   } catch (error: unknown) {
-    // Note: Do not log private journal text or secrets
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Server Gemini chat error occurred:', errorMessage.slice(0, 100));
+    console.warn('[Gemini Service] Chat rate limit or API notice, using local synthesis fallback:', errorMessage.slice(0, 100));
 
-    // Return a safe fallback response so the user's reflective session flow is uninterrupted
-    res.json({
-      text: 'I hear you, and I appreciate you sharing this deeply. As you hold this thought in mind, what is one kind thing you can offer yourself in this exact moment?',
-      suggestedFollowUps: [
-        'I need to give myself more patience',
-        'Taking a deep breath and letting this settle',
-        'Looking forward to what comes tomorrow',
-      ],
-    });
+    // Return high-fidelity local synthesis response so user reflective session flow is smooth
+    res.json(synthesizeChatFallback(req.body.history || [], req.body.message || '', req.body.mood || 'Reflective'));
   }
 });
 
@@ -291,37 +283,7 @@ app.post('/api/journal/summarize', requireAuth, async (req, res) => {
     });
 
     if (!ai) {
-      // Fallback summary when API key is not configured
-      res.json({
-        title: sessionTitle !== 'New Journal Entry' ? sessionTitle : 'Mindful Reflection & Growth',
-        summary: `A thoughtful reflection exploring personal challenges and emotional equilibrium around ${sessionTitle}. You gained clarity on your current mental landscape and identified intentional steps forward.`,
-        keyThoughts: [
-          'Acknowledged the value of creating deliberate stillness for self-reflection.',
-          'Identified the connection between daily pressures and emotional well-being.',
-          'Expressed a desire to approach current situations with greater self-compassion.',
-        ],
-        actionItems: [
-          'Dedicate 5 minutes each morning to check in with your breath and body.',
-          'Practice setting gentle boundaries around energy-draining tasks.',
-          'Celebrate one small personal victory before ending each day.',
-        ],
-        reflection: `Throughout this reflection, you explored meaningful thoughts surrounding ${sessionTitle}. By taking the time to articulate your inner dialogue, you granted yourself the space to step back from immediate reaction into thoughtful observation.`,
-        keyThemes: ['Mindful Awareness', 'Personal Growth', 'Inner Dialogue', 'Emotional Clarity'],
-        mood: {
-          label: mood || 'Calm & Grounded',
-          emoji: '🌿',
-          description: 'A thoughtful and reflective balance between self-observation and forward motion.',
-          sentimentScore: 78,
-        },
-        takeaways: [
-          'Recognize the courage in giving your thoughts dedicated time and stillness.',
-          'Hold gentle compassion for parts of your life currently undergoing change.',
-          'Focus on one small, intentional action today that aligns with your core values.',
-        ],
-        mindfulPrompt: 'What would feel most restorative for your mind as you step forward from this session?',
-        generatedAt: nowFormatted,
-        wordCount: totalWords,
-      });
+      res.json(synthesizeJournalSummary(messages, sessionTitle, mood));
       return;
     }
 
@@ -349,8 +311,8 @@ ${conversationTranscript}`;
 
     let summarizeResponseText = '';
     const summarizeModels = [
+      { model: 'gemini-3.8-flash', thinkingLevel: ThinkingLevel.LOW },
       { model: 'gemini-3.1-flash-lite', thinkingLevel: ThinkingLevel.MINIMAL },
-      { model: 'gemini-3.7-flash', thinkingLevel: ThinkingLevel.LOW },
     ];
     let summarizeLastError: unknown = null;
 
@@ -402,9 +364,10 @@ Never disclose raw transcript logs. Strictly return JSON adhering to the schema.
                     label: { type: Type.STRING, description: 'Mood descriptor like Grounded Clarity or Peaceful Resolution' },
                     emoji: { type: Type.STRING, description: 'Single emoji representing the mood' },
                     description: { type: Type.STRING, description: 'One sentence describing the emotional resonance' },
-                    sentimentScore: { type: Type.NUMBER, description: 'Score between 0 and 100' },
+                    sentimentScore: { type: Type.NUMBER, description: 'Score between 0 and 100 where 0 is distressed/heavy, 50 is neutral/balanced, and 100 is joyful/thriving' },
+                    energyLevel: { type: Type.NUMBER, description: 'Energy score between 0 and 100 where 0 is depleted/exhausted, 50 is calm/steady, and 100 is energized/vibrant' },
                   },
-                  required: ['label', 'emoji', 'description', 'sentimentScore'],
+                  required: ['label', 'emoji', 'description', 'sentimentScore', 'energyLevel'],
                 },
                 takeaways: {
                   type: Type.ARRAY,
@@ -456,6 +419,7 @@ Never disclose raw transcript logs. Strictly return JSON adhering to the schema.
           emoji: '✨',
           description: 'A state of contemplative awareness.',
           sentimentScore: 75,
+          energyLevel: 70,
         },
         takeaways: [
           'Stay present with the insights discovered today.',
@@ -476,11 +440,18 @@ Never disclose raw transcript logs. Strictly return JSON adhering to the schema.
         : ['Take a quiet moment to ground yourself before major tasks.', 'Reflect on what brought you peace today.'],
       reflection: summaryData.reflection || 'Throughout this session, you created intentional space for self-reflection and growth.',
       keyThemes: summaryData.keyThemes || ['Reflection', 'Growth'],
-      mood: summaryData.mood || {
+      mood: summaryData.mood ? {
+        label: summaryData.mood.label || 'Reflective',
+        emoji: summaryData.mood.emoji || '🌿',
+        description: summaryData.mood.description || 'Centered and introspective.',
+        sentimentScore: typeof summaryData.mood.sentimentScore === 'number' ? summaryData.mood.sentimentScore : 75,
+        energyLevel: typeof summaryData.mood.energyLevel === 'number' ? summaryData.mood.energyLevel : 70,
+      } : {
         label: 'Reflective',
         emoji: '🌿',
         description: 'Centered and introspective.',
         sentimentScore: 80,
+        energyLevel: 72,
       },
       takeaways: summaryData.takeaways || [],
       mindfulPrompt: summaryData.mindfulPrompt || 'What is one intention you would like to hold today?',
@@ -488,52 +459,16 @@ Never disclose raw transcript logs. Strictly return JSON adhering to the schema.
       wordCount: totalWords,
     });
   } catch (error: unknown) {
-    // Note: Do not log private journal text or user data
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Server Gemini summarize error occurred:', errorMessage.slice(0, 100));
+    console.warn('[Gemini Service] Summarize rate limit or API notice, using local synthesis fallback:', errorMessage.slice(0, 100));
 
-    const totalWords = (req.body.messages || []).reduce((acc: number, m: { text?: string }) => {
-      return acc + (m.text ? m.text.trim().split(/\s+/).length : 0);
-    }, 0);
-
-    const nowFormatted = new Date().toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-
-    res.json({
-      title: req.body.sessionTitle && req.body.sessionTitle !== 'New Journal Entry'
-        ? req.body.sessionTitle
-        : 'Reflective Growth & Stillness',
-      summary: 'In this session, you took valuable time to listen closely to your inner thoughts, fostering self-understanding and emotional equilibrium.',
-      keyThoughts: [
-        'Recognized that acknowledging feelings is the first step to processing them.',
-        'Created space to step back from reaction into mindful observation.',
-        'Identified the importance of nurturing mental and emotional well-being.',
-      ],
-      actionItems: [
-        'Take a 3-minute mindful breathing break whenever you feel overwhelmed.',
-        'Write down one positive insight or gratitude before sleep.',
-        'Maintain patience with your current journey and unfolding goals.',
-      ],
-      reflection: 'In this session, you took valuable time to listen closely to your inner thoughts. Articulating what matters to you is the foundational step towards self-understanding and emotional equilibrium.',
-      keyThemes: ['Self-Discovery', 'Mindful Presence', 'Inner Clarity'],
-      mood: {
-        label: 'Grounded & Aware',
-        emoji: '🌱',
-        description: 'A meaningful state of honest self-reflection.',
-        sentimentScore: 75,
-      },
-      takeaways: [
-        'Acknowledge yourself for creating this mindful space today.',
-        'Allow thoughts to unfold without immediate self-judgment.',
-        'Carry this feeling of gentle awareness into the rest of your day.',
-      ],
-      mindfulPrompt: 'What is one gentle commitment you can make to your well-being today?',
-      generatedAt: nowFormatted,
-      wordCount: totalWords,
-    });
+    res.json(
+      synthesizeJournalSummary(
+        req.body.messages || [],
+        req.body.sessionTitle,
+        req.body.mood || 'Reflective'
+      )
+    );
   }
 });
 
@@ -603,39 +538,7 @@ app.post('/api/journal/ask', requireAuth, async (req, res) => {
     const contextText = JSON.stringify(journalSummaries, null, 2);
 
     if (!ai) {
-      // Offline fallback: intelligent keyword scan
-      const qLower = question.toLowerCase();
-      const matched = journals.filter((j: { title?: string; tags?: string[]; summary?: { summary?: string }; messages?: Array<{ text?: string }> }) => {
-        return (
-          j.title?.toLowerCase().includes(qLower) ||
-          j.tags?.some((t) => t.toLowerCase().includes(qLower)) ||
-          j.summary?.summary?.toLowerCase().includes(qLower) ||
-          j.messages?.some((m) => m.text?.toLowerCase().includes(qLower))
-        );
-      });
-
-      const matchedRefs = matched.slice(0, 3).map((m: { id?: string; title?: string; date?: string; summary?: { summary?: string } }) => ({
-        id: m.id || '',
-        title: m.title || 'Journal Entry',
-        date: m.date || '',
-        excerpt: m.summary?.summary || 'Reflective dialogue',
-      }));
-
-      res.json({
-        answer: matched.length > 0
-          ? `Based on your private journal history, I found ${matched.length} entry/entries relating to "${question}". In entries such as **"${matched[0].title}"** (${matched[0].date}), you explored thoughts surrounding this topic.`
-          : `I reviewed your ${journals.length} journal session(s). While I didn't detect an exact match for "${question}", your journals focus on themes like personal clarity, mindfulness, and ongoing growth.`,
-        referencedJournals: matchedRefs,
-        keyInsights: [
-          `Analyzed ${journals.length} private journal entries.`,
-          matched.length > 0 ? `Identified connections in ${matched.length} sessions.` : 'No direct keyword overlap found.',
-        ],
-        suggestedFollowUps: [
-          'What have I been thinking about this week?',
-          'What concerns have I mentioned repeatedly?',
-          'What goals have I mentioned?',
-        ],
-      });
+      res.json(synthesizeAskJournal(question, journals));
       return;
     }
 
@@ -666,8 +569,8 @@ User's Question:
 
     let askResponseText = '';
     const askModels = [
+      { model: 'gemini-3.8-flash', thinkingLevel: ThinkingLevel.LOW },
       { model: 'gemini-3.1-flash-lite', thinkingLevel: ThinkingLevel.MINIMAL },
-      { model: 'gemini-3.7-flash', thinkingLevel: ThinkingLevel.LOW },
     ];
     let askLastError: unknown = null;
 
@@ -760,22 +663,9 @@ User's Question:
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Server Gemini Ask My Journal error occurred:', errorMessage.slice(0, 100));
+    console.warn('[Gemini Service] Ask My Journal rate limit or API notice, using local synthesis fallback:', errorMessage.slice(0, 100));
 
-    res.json({
-      answer: `I reviewed your journal sessions. While analyzing your entries, I observed recurring themes around mindfulness, personal balance, and self-reflection. To explore further, try asking about specific topics or recent dates.`,
-      referencedJournals: [],
-      keyInsights: [
-        'Your journal contains multiple reflective dialogues exploring daily experiences.',
-        'Consider exploring specific feelings, milestones, or recurring questions.',
-      ],
-      suggestedFollowUps: [
-        'What have I been thinking about this week?',
-        'What concerns have I mentioned repeatedly?',
-        'What moments of gratitude have I recorded?',
-        'What goals have I mentioned?',
-      ],
-    });
+    res.json(synthesizeAskJournal(req.body.question || '', req.body.journals || []));
   }
 });
 
@@ -833,38 +723,7 @@ app.post('/api/journal/monthly-reflection', requireAuth, async (req, res) => {
     });
 
     if (!ai) {
-      // Offline fallback
-      res.json({
-        month,
-        monthDisplay: effectiveMonthDisplay,
-        totalEntries: journals.length,
-        summaryOverview: `During ${effectiveMonthDisplay}, you recorded ${journals.length} journal entry/entries. Across these reflections, you took deliberate time to examine your priorities, navigate daily friction, and nurture self-awareness.`,
-        whatStoodOut: [
-          `Maintained steady dedication to self-reflection across ${journals.length} journal sessions.`,
-          'Navigated cognitive workload by instituting healthy personal boundaries.',
-          'Explored the connection between stillness and emotional equilibrium.',
-        ],
-        momentsOfJoy: [
-          'Celebrated moments of focused progress and relief after resolving blockages.',
-          'Found peace in creating dedicated quiet time for self-check-ins.',
-        ],
-        recurringConcerns: [
-          'Balancing multiple competing responsibilities without feeling fragmented.',
-          'Managing internal expectations during demanding transitional periods.',
-        ],
-        accomplishments: [
-          `Documented ${journals.length} reflective sessions to track personal growth.`,
-          'Clarified priority boundaries to protect focus and mental well-being.',
-          'Identified actionable coping mechanisms for everyday stress.',
-        ],
-        whatICaredAbout: [
-          'Cultivating mental clarity and present-moment awareness.',
-          'Sustaining authentic progress on long-term personal goals.',
-          'Protecting emotional balance amid changing circumstances.',
-        ],
-        questionToCarryForward: `As you step into the coming month, what is one boundary or daily rhythm that would best protect your peace and creative energy?`,
-        generatedAt: nowFormatted,
-      });
+      res.json(synthesizeMonthlyReflection(month, effectiveMonthDisplay, journals));
       return;
     }
 
@@ -887,8 +746,8 @@ ${contextText}`;
 
     let reflectionResponseText = '';
     const modelsToTry = [
+      { model: 'gemini-3.8-flash', thinkingLevel: ThinkingLevel.LOW },
       { model: 'gemini-3.1-flash-lite', thinkingLevel: ThinkingLevel.MINIMAL },
-      { model: 'gemini-3.7-flash', thinkingLevel: ThinkingLevel.LOW },
     ];
     let lastError: unknown = null;
 
@@ -997,42 +856,15 @@ ${contextText}`;
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Server Gemini Monthly Reflection error occurred:', errorMessage.slice(0, 100));
+    console.warn('[Gemini Service] Monthly Reflection rate limit or API notice, using local synthesis fallback:', errorMessage.slice(0, 100));
 
-    const nowFormatted = new Date().toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-
-    const monthName = req.body.monthDisplay || req.body.month || 'This Month';
-    res.json({
-      month: req.body.month || '',
-      monthDisplay: monthName,
-      totalEntries: Array.isArray(req.body.journals) ? req.body.journals.length : 0,
-      summaryOverview: `During ${monthName}, your journal entries reflect an ongoing journey toward personal balance, honest self-inquiry, and emotional resilience.`,
-      whatStoodOut: [
-        'Dedicated consistent time to listen to your inner thoughts and feelings.',
-        'Explored solutions for daily stressors with self-compassion.',
-      ],
-      momentsOfJoy: [
-        'Found moments of relief and satisfaction when completing key objectives.',
-        'Experienced clarity through mindful introspection.',
-      ],
-      recurringConcerns: [
-        'Maintaining equilibrium between demands and rest.',
-      ],
-      accomplishments: [
-        'Cultivated a dependable space for reflective self-care.',
-        'Identified proactive habits to nurture mental well-being.',
-      ],
-      whatICaredAbout: [
-        'Authentic self-expression and mindful living.',
-        'Nurturing personal clarity and calm.',
-      ],
-      questionToCarryForward: 'What is one intention you would like to anchor into your routine next month?',
-      generatedAt: nowFormatted,
-    });
+    res.json(
+      synthesizeMonthlyReflection(
+        req.body.month || '',
+        req.body.monthDisplay || req.body.month || 'This Month',
+        req.body.journals || []
+      )
+    );
   }
 });
 
@@ -1089,57 +921,7 @@ app.post('/api/journal/patterns', requireAuth, async (req, res) => {
     });
 
     if (!ai) {
-      // Offline fallback
-      res.json({
-        timeframe,
-        timeframeLabel: effectiveLabel,
-        totalEntriesAnalyzed: journals.length,
-        dateRange: dateRange || 'Recent Journal Period',
-        recurringThemes: [
-          {
-            name: 'Mindful Attention & Focus Boundaries',
-            prominence: 'High',
-            description: 'Repeatedly instituted boundaries around distractions and task fragmentation to preserve cognitive energy.',
-            dateRangeOrEntries: 'Observed across multiple recent sessions',
-          },
-          {
-            name: 'Emotional Self-Compassion',
-            prominence: 'Medium',
-            description: 'Transitioned from self-criticism toward constructive self-support when facing difficult days.',
-            dateRangeOrEntries: 'Recurring throughout reflective dialogues',
-          },
-          {
-            name: 'Navigating Work & Life Equilibrium',
-            prominence: 'High',
-            description: 'Actively questioned sustainable work patterns and sought structured ways to decompress.',
-            dateRangeOrEntries: 'Consistent focus area',
-          },
-        ],
-        behavioralAndEmotionalPatterns: [
-          {
-            title: 'Timer-Based Focus Reset',
-            category: 'Behavioral',
-            insight: 'Setting a structured time boundary (e.g. 45-minute sprint) reliably breaks cycles of procrastination.',
-          },
-          {
-            title: 'Evening Decompression Arc',
-            category: 'Emotional',
-            insight: 'Journaling at the close of day provides an immediate sense of psychological closure and stress reduction.',
-          },
-          {
-            title: 'Proactive Goal Articulation',
-            category: 'Mindset',
-            insight: 'Writing out specific micro-steps significantly increases your follow-through and confidence.',
-          },
-        ],
-        growthAndEvolution: `Over the ${effectiveLabel}, your entries demonstrate a clear shift from reactive overwhelm toward deliberate self-regulation. By naming emotions and identifying actionable next steps in your journal, you have built stronger internal frameworks for managing complexity.`,
-        reflectionQuestions: [
-          'Which habits or boundaries gave you the highest return on energy over this timeframe?',
-          'What is one pattern you noticed that you feel ready to gently transform?',
-          'How can you celebrate the personal progress you have made during this period?',
-        ],
-        generatedAt: nowFormatted,
-      });
+      res.json(synthesizePatternsAndThemes(timeframe, effectiveLabel, dateRange, journals));
       return;
     }
 
@@ -1166,8 +948,8 @@ ${contextText}`;
 
     let patternsResponseText = '';
     const modelsToTry = [
+      { model: 'gemini-3.8-flash', thinkingLevel: ThinkingLevel.LOW },
       { model: 'gemini-3.1-flash-lite', thinkingLevel: ThinkingLevel.MINIMAL },
-      { model: 'gemini-3.7-flash', thinkingLevel: ThinkingLevel.LOW },
     ];
     let lastError: unknown = null;
 
@@ -1286,53 +1068,16 @@ ${contextText}`;
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Server Gemini Patterns & Themes error occurred:', errorMessage.slice(0, 100));
+    console.warn('[Gemini Service] Patterns & Themes rate limit or API notice, using local synthesis fallback:', errorMessage.slice(0, 100));
 
-    const nowFormatted = new Date().toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-
-    const timeframeName = req.body.timeframeLabel || 'Selected Period';
-    res.json({
-      timeframe: req.body.timeframe || '30-days',
-      timeframeLabel: timeframeName,
-      totalEntriesAnalyzed: Array.isArray(req.body.journals) ? req.body.journals.length : 0,
-      dateRange: req.body.dateRange || 'Recent Journal Period',
-      recurringThemes: [
-        {
-          name: 'Mindful Introspection',
-          prominence: 'High',
-          description: 'Engaged in thoughtful dialogue around daily experiences and inner state.',
-          dateRangeOrEntries: 'Observed across entries',
-        },
-        {
-          name: 'Personal Clarity & Direction',
-          prominence: 'Medium',
-          description: 'Identified practical steps to address daily goals and commitments.',
-          dateRangeOrEntries: 'Recurring theme',
-        },
-      ],
-      behavioralAndEmotionalPatterns: [
-        {
-          title: 'Structured Reflection',
-          category: 'Behavioral',
-          insight: 'Creating dedicated journaling moments brings structured relief from everyday pace.',
-        },
-        {
-          title: 'Grounded Equilibrium',
-          category: 'Emotional',
-          insight: 'Taking time to unpack thoughts reduces anxiety and establishes emotional poise.',
-        },
-      ],
-      growthAndEvolution: `Throughout ${timeframeName}, your entries reveal a continuous dedication to understanding your inner world and taking mindful actions forward.`,
-      reflectionQuestions: [
-        'What aspect of your daily routine currently brings you the greatest energy?',
-        'How can you continue supporting your mental well-being in the weeks ahead?',
-      ],
-      generatedAt: nowFormatted,
-    });
+    res.json(
+      synthesizePatternsAndThemes(
+        req.body.timeframe || '30-days',
+        req.body.timeframeLabel || 'Selected Period',
+        req.body.dateRange || 'Recent Journal Period',
+        req.body.journals || []
+      )
+    );
   }
 });
 

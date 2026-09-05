@@ -10,13 +10,15 @@ import {
   CheckCircle,
   Feather,
   Calendar,
-  TrendingUp
+  TrendingUp,
+  Activity
 } from 'lucide-react';
 import { STARTER_PROMPTS } from '../data/sampleSessions';
 
 interface LandingPageProps {
   onStartJournal: (prompt?: string) => void;
   onExploreSession: (sessionId: string) => void;
+  onTrajectory?: () => void;
   onAskJournal?: () => void;
   onMonthlyReflection?: () => void;
   onPatterns?: () => void;
@@ -25,6 +27,7 @@ interface LandingPageProps {
 export function LandingPage({
   onStartJournal,
   onExploreSession,
+  onTrajectory,
   onAskJournal,
   onMonthlyReflection,
   onPatterns,
@@ -57,6 +60,16 @@ export function LandingPage({
             <span>Start a New Journal Session</span>
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </button>
+
+          {onTrajectory && (
+            <button
+              onClick={onTrajectory}
+              className="flex items-center gap-2 rounded-xl border border-indigo-400/30 bg-indigo-600/20 hover:bg-indigo-600/30 px-5 py-3 text-sm font-medium text-indigo-200 backdrop-blur-xl shadow-lg transition-all active:scale-95"
+            >
+              <Activity className="h-4 w-4 text-indigo-300" />
+              <span>Mood & Energy Trajectory</span>
+            </button>
+          )}
 
           {onMonthlyReflection && (
             <button
@@ -101,7 +114,7 @@ export function LandingPage({
           </p>
         </div>
 
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {/* Card 1 */}
           <div className="relative flex flex-col rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5 shadow-xl transition-all hover:border-white/20 hover:bg-white/[0.07]">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 text-indigo-300 border border-indigo-500/30">
@@ -151,6 +164,19 @@ export function LandingPage({
             </h3>
             <p className="mt-2 text-xs leading-relaxed text-slate-300">
               Track recurring topics, behavioral loops, and emotional evolution across custom timeframes.
+            </p>
+          </div>
+
+          {/* Card 5 */}
+          <div className="relative flex flex-col rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5 shadow-xl transition-all hover:border-white/20 hover:bg-white/[0.07]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 text-emerald-300 border border-emerald-500/30">
+              <Activity className="h-5 w-5" />
+            </div>
+            <h3 className="mt-4 text-sm font-semibold text-white">
+              5. Mood & Energy Trajectory
+            </h3>
+            <p className="mt-2 text-xs leading-relaxed text-slate-300">
+              Visualize longitudinal sentiment valence and vitality curves with 4-quadrant balance mapping.
             </p>
           </div>
         </div>

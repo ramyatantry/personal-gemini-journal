@@ -68,21 +68,25 @@ export function AskMyJournal({
   const loadingCardRef = useRef<HTMLDivElement | null>(null);
   const latestResultRef = useRef<HTMLDivElement | null>(null);
 
-  // Keep container at top when inquiry starts so the header badge is never clipped
+  // When synthesis starts, ensure loading card is comfortably in view within main container
   useEffect(() => {
-    if (isLoading) {
-      // Ensure the scroll container stays at top so the entire header and analyzing card are visible
-      const parentMain = loadingCardRef.current?.closest('main');
+    if (isLoading && loadingCardRef.current) {
+      const parentMain = loadingCardRef.current.closest('main');
       if (parentMain) {
-        parentMain.scrollTo({ top: 0, behavior: 'smooth' });
+        const offset = loadingCardRef.current.offsetTop;
+        parentMain.scrollTo({ top: Math.max(0, offset - 100), behavior: 'smooth' });
       }
     }
   }, [isLoading]);
 
-  // When synthesis finishes, gently bring the new result into view
+  // When synthesis finishes, gently bring the new result into view within main container
   useEffect(() => {
     if (history.length > 0 && !isLoading && latestResultRef.current) {
-      latestResultRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      const parentMain = latestResultRef.current.closest('main');
+      if (parentMain) {
+        const offset = latestResultRef.current.offsetTop;
+        parentMain.scrollTo({ top: Math.max(0, offset - 80), behavior: 'smooth' });
+      }
     }
   }, [history.length, isLoading]);
 
@@ -117,7 +121,7 @@ export function AskMyJournal({
   };
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 pt-4 pb-24 sm:px-6 sm:pt-6 sm:pb-32 lg:px-8">
+    <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 pt-6 pb-32 sm:px-6 sm:pt-8 sm:pb-40 lg:px-8">
       {/* Header Banner */}
       <div className="relative shrink-0 rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-white/[0.02] p-4 sm:p-5 backdrop-blur-2xl shadow-2xl overflow-hidden">
         {/* Glow Accent */}
@@ -167,7 +171,7 @@ export function AskMyJournal({
             </button>
           </div>
 
-          {showInquiries && !isLoading && (
+          {showInquiries && (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {PRESET_QUESTIONS.map((item) => {
                 const Icon = item.icon;
@@ -241,29 +245,29 @@ export function AskMyJournal({
         </div>
       </form>
 
-      {/* Loading Pulse Animation State - Compact, Proportional & Fully in Viewport */}
+      {/* Loading Pulse Animation State - Fully Visible & Never Compressed */}
       {isLoading && (
         <div
           ref={loadingCardRef}
-          className="mt-3.5 overflow-hidden rounded-2xl border border-indigo-400/30 bg-gradient-to-b from-indigo-950/80 via-slate-900/90 to-purple-950/80 p-3.5 sm:p-4 backdrop-blur-xl shadow-xl relative animate-in fade-in duration-200"
+          className="mt-4 w-full shrink-0 min-h-[145px] rounded-2xl border border-indigo-400/40 bg-gradient-to-b from-indigo-950/95 via-slate-900/95 to-purple-950/95 p-4 sm:p-5 backdrop-blur-2xl shadow-2xl relative animate-in fade-in duration-200"
         >
           {/* Ambient Glow */}
           <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-indigo-500/20 blur-2xl animate-pulse" />
           <div className="pointer-events-none absolute -bottom-8 -left-8 h-24 w-24 rounded-full bg-purple-500/20 blur-2xl animate-pulse" style={{ animationDelay: '1s' }} />
 
           {/* Header Status */}
-          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="relative flex h-8 w-8 shrink-0 items-center justify-center">
+              <div className="relative flex h-9 w-9 shrink-0 items-center justify-center">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-xl bg-indigo-500/30 opacity-75" />
-                <div className="relative flex h-8 w-8 items-center justify-center rounded-xl border border-indigo-400/40 bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-md">
+                <div className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-indigo-400/40 bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-md">
                   <Sparkles className="h-4 w-4 animate-spin" style={{ animationDuration: '4s' }} />
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-xs sm:text-sm font-semibold text-white tracking-wide">
+                  <h3 className="text-sm font-semibold text-white tracking-wide">
                     Analyzing Journal Data
                   </h3>
                   <span className="relative flex h-2 w-2">
@@ -271,37 +275,37 @@ export function AskMyJournal({
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-300">
+                <p className="text-xs text-slate-300 mt-0.5">
                   Scanning <span className="font-medium text-indigo-300">{sessions.length} reflections</span> for patterns and citations...
                 </p>
               </div>
             </div>
 
             {currentQuery && (
-              <div className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-xl border border-indigo-400/30 bg-indigo-500/15 px-2.5 py-1 text-[11px] text-indigo-200 backdrop-blur-md max-w-full">
-                <Search className="h-3 w-3 shrink-0 text-indigo-400" />
-                <span className="truncate max-w-[220px] font-medium">&ldquo;{currentQuery}&rdquo;</span>
+              <div className="inline-flex items-center gap-2 self-start sm:self-auto rounded-xl border border-indigo-400/30 bg-indigo-500/15 px-3 py-1.5 text-xs text-indigo-200 backdrop-blur-md max-w-full">
+                <Search className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
+                <span className="truncate max-w-[260px] sm:max-w-md font-medium">&ldquo;{currentQuery}&rdquo;</span>
               </div>
             )}
           </div>
 
           {/* Shimmering Progress Bar */}
-          <div className="relative z-10 mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+          <div className="relative z-10 mt-3.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
             <div className="h-full w-full bg-gradient-to-r from-indigo-500 via-purple-400 to-pink-500 animate-pulse" />
           </div>
 
           {/* Analysis Pulse Progress Pipeline Indicators */}
-          <div className="relative z-10 mt-2.5 grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <div className="flex items-center gap-2 rounded-lg border border-indigo-500/20 bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium text-indigo-200">
-              <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-ping shrink-0" />
+          <div className="relative z-10 mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-200">
+              <span className="h-2 w-2 rounded-full bg-indigo-400 animate-ping shrink-0" />
               <span>1. Retrieving entries</span>
             </div>
-            <div className="flex items-center gap-2 rounded-lg border border-purple-500/20 bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium text-purple-200">
-              <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-pulse shrink-0" />
+            <div className="flex items-center gap-2 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-xs font-medium text-purple-200">
+              <span className="h-2 w-2 rounded-full bg-purple-400 animate-pulse shrink-0" />
               <span>2. Extracting themes</span>
             </div>
-            <div className="flex items-center gap-2 rounded-lg border border-pink-500/20 bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium text-pink-200">
-              <span className="h-1.5 w-1.5 rounded-full bg-pink-400 animate-pulse shrink-0" />
+            <div className="flex items-center gap-2 rounded-xl border border-pink-500/30 bg-pink-500/10 px-3 py-1.5 text-xs font-medium text-pink-200">
+              <span className="h-2 w-2 rounded-full bg-pink-400 animate-pulse shrink-0" />
               <span>3. Synthesizing insights</span>
             </div>
           </div>
@@ -309,7 +313,7 @@ export function AskMyJournal({
       )}
 
       {/* Results / History Stream */}
-      <div className="mt-6 flex-1 space-y-6">
+      <div className="mt-6 w-full space-y-6">
         {history.length === 0 && !isLoading ? (
           sessions.length === 0 ? (
             /* Empty State: No Journals Yet */

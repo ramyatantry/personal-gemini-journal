@@ -18,6 +18,7 @@ export interface JournalSummary {
     emoji: string;
     description: string;
     sentimentScore: number; // 0 to 100
+    energyLevel?: number; // 0 to 100 (0=depleted/exhausted, 50=calm/steady, 100=vibrant/high)
   };
   takeaways: string[];
   mindfulPrompt: string;
@@ -97,5 +98,5 @@ export interface PatternsThemesAnalysis {
   generatedAt: string;
 }
 
-export type ViewMode = 'landing' | 'journal' | 'ask' | 'monthly-reflection' | 'patterns';
+export type ViewMode = 'landing' | 'journal' | 'ask' | 'monthly-reflection' | 'patterns' | 'trajectory';
 

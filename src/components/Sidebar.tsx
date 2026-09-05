@@ -14,7 +14,8 @@ import {
   Lock,
   Compass,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  Activity
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -22,6 +23,8 @@ interface SidebarProps {
   activeSessionId: string | null;
   onSelectSession: (id: string) => void;
   onNewSession: () => void;
+  onTrajectory?: () => void;
+  isTrajectoryActive?: boolean;
   onAskJournal?: () => void;
   isAskActive?: boolean;
   onMonthlyReflection?: () => void;
@@ -38,6 +41,8 @@ export function Sidebar({
   activeSessionId,
   onSelectSession,
   onNewSession,
+  onTrajectory,
+  isTrajectoryActive,
   onAskJournal,
   isAskActive,
   onMonthlyReflection,
@@ -73,7 +78,7 @@ export function Sidebar({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-80 flex-col border-r border-white/10 bg-slate-900/90 md:bg-white/[0.03] backdrop-blur-2xl transition-transform duration-200 ease-in-out md:static md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-80 h-full shrink-0 flex-col border-r border-white/10 bg-slate-900/95 md:bg-white/[0.03] backdrop-blur-2xl transition-transform duration-200 ease-in-out md:static md:translate-x-0 ${
           isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
         }`}
       >
@@ -111,6 +116,24 @@ export function Sidebar({
 
           {/* AI Intelligence Section Buttons */}
           <div className="grid grid-cols-1 gap-1.5 pt-1">
+            {onTrajectory && (
+              <button
+                id="sidebar-trajectory-btn"
+                onClick={() => {
+                  onTrajectory();
+                  onClose();
+                }}
+                className={`flex w-full items-center justify-start gap-2.5 rounded-xl py-2 px-3 text-xs font-semibold transition-all active:scale-[0.98] border ${
+                  isTrajectoryActive
+                    ? 'bg-indigo-600 text-white border-indigo-400/40 shadow-md shadow-indigo-600/20'
+                    : 'bg-white/5 hover:bg-white/10 text-indigo-300 hover:text-white border-indigo-400/20 hover:border-indigo-400/40'
+                }`}
+              >
+                <Activity className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+                <span>Mood & Energy Trajectory</span>
+              </button>
+            )}
+
             {onAskJournal && (
               <button
                 onClick={() => {

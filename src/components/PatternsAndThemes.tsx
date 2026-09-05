@@ -209,7 +209,7 @@ ${currentAnalysis.reflectionQuestions.map((q, idx) => `${idx + 1}. ${q}`).join('
     <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 pt-6 pb-32 sm:px-6 sm:pt-8 sm:pb-40 lg:px-8">
       <div className="w-full space-y-6">
         {/* Header Title Section */}
-        <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-slate-900/60 p-6 backdrop-blur-2xl sm:flex-row sm:items-center sm:justify-between shadow-2xl">
+        <div className="relative z-20 flex flex-col gap-4 rounded-3xl border border-white/10 bg-slate-900/60 p-5 sm:p-6 backdrop-blur-2xl lg:flex-row lg:items-center lg:justify-between shadow-2xl">
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-xs font-medium text-purple-300">
               <TrendingUp className="h-3.5 w-3.5" />
@@ -218,13 +218,13 @@ ${currentAnalysis.reflectionQuestions.map((q, idx) => `${idx + 1}. ${q}`).join('
             <h1 className="font-editorial text-2xl font-semibold tracking-tight text-white sm:text-3xl">
               Patterns & Themes
             </h1>
-            <p className="text-xs text-slate-400 sm:text-sm">
+            <p className="text-xs text-slate-400 sm:text-sm max-w-xl">
               Discover recurring narrative threads, emotional dynamics, habit shifts, and personal growth across your journaling journey.
             </p>
           </div>
 
           {/* Timeframe Selector & Trigger */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <div className="flex rounded-2xl border border-white/15 bg-white/5 p-1 backdrop-blur-md">
               {(['30-days', '3-months', '6-months', 'all'] as TimeframeOption[]).map((tf) => {
                 const isSelected = selectedTimeframe === tf;

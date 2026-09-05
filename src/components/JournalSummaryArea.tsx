@@ -14,7 +14,9 @@ import {
   Clock,
   Brain,
   CheckSquare,
-  FileText
+  FileText,
+  Activity,
+  Zap
 } from 'lucide-react';
 
 interface JournalSummaryAreaProps {
@@ -23,6 +25,7 @@ interface JournalSummaryAreaProps {
   isGenerating?: boolean;
   onContinueJournaling: () => void;
   onFinishJournal?: () => void;
+  onViewTrajectory?: () => void;
   hasMessages: boolean;
 }
 
@@ -32,6 +35,7 @@ export function JournalSummaryArea({
   isGenerating = false,
   onContinueJournaling,
   onFinishJournal,
+  onViewTrajectory,
   hasMessages,
 }: JournalSummaryAreaProps) {
   const [copied, setCopied] = useState(false);
@@ -337,9 +341,21 @@ ${summary.mindfulPrompt}
         <div className="grid gap-4 sm:grid-cols-2">
           {/* Mood Card */}
           <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-xl p-4">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-              <Smile className="h-4 w-4 text-indigo-400" />
-              <span>Emotional Tone & Resonance</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
+                <Smile className="h-4 w-4 text-indigo-400" />
+                <span>Emotional Tone & Resonance</span>
+              </div>
+              {onViewTrajectory && (
+                <button
+                  onClick={onViewTrajectory}
+                  className="flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors font-medium cursor-pointer"
+                  title="View longitudinal trajectory"
+                >
+                  <Activity className="h-3 w-3" />
+                  <span>Trajectory</span>
+                </button>
+              )}
             </div>
             <div className="mt-3 flex items-center gap-3">
               <span className="text-2xl">{summary.mood.emoji}</span>
@@ -350,6 +366,39 @@ ${summary.mindfulPrompt}
                 <p className="mt-0.5 text-[11px] text-slate-400 leading-snug">
                   {summary.mood.description}
                 </p>
+              </div>
+            </div>
+
+            {/* Score Indicators */}
+            <div className="mt-3.5 grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
+              <div className="rounded-lg bg-white/5 p-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-400">Valence:</span>
+                  <span className="font-semibold text-indigo-300">
+                    {summary.mood.sentimentScore || 75}/100
+                  </span>
+                </div>
+                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500"
+                    style={{ width: `${Math.min(100, Math.max(0, summary.mood.sentimentScore || 75))}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-white/5 p-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-400">Vitality:</span>
+                  <span className="font-semibold text-emerald-300">
+                    {summary.mood.energyLevel ?? 70}/100
+                  </span>
+                </div>
+                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
+                    style={{ width: `${Math.min(100, Math.max(0, summary.mood.energyLevel ?? 70))}%` }}
+                  />
+                </div>
               </div>
             </div>
           </div>

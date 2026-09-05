@@ -20,6 +20,7 @@ interface JournalChatProps {
   session: JournalSession;
   onUpdateSession: (updated: JournalSession) => void;
   onFinishJournal: () => void;
+  onViewTrajectory?: () => void;
 }
 
 const MOOD_OPTIONS = [
@@ -35,6 +36,7 @@ export function JournalChat({
   session,
   onUpdateSession,
   onFinishJournal,
+  onViewTrajectory,
 }: JournalChatProps) {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -337,6 +339,7 @@ export function JournalChat({
                 isGenerating={isGeneratingSummary}
                 onContinueJournaling={() => setActiveTab('chat')}
                 onFinishJournal={triggerFinishJournal}
+                onViewTrajectory={onViewTrajectory}
                 hasMessages={session.messages.length > 0}
               />
             </div>
